@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>共通点ゼロの医療アプリ開発チーム</title>
+    <!-- Google Fonts: Inter and Noto Sans JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css?v=5">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <span class="material-icons-outlined app-logo">rocket_launch</span>
+                <h1 class="app-title">共通点ゼロの医療アプリ開発チーム</h1>
+                <div class="dropdown" id="project-dropdown">
+                    <button class="dropdown-btn" id="current-project-btn">
+                        <span>読み込み中...</span> <span class="material-icons-outlined">arrow_drop_down</span>
+                    </button>
+                    <div class="dropdown-content" id="project-list">
+                        <!-- Projects injected by JS -->
+                        <a href="#" class="add-project-btn" id="btn-add-project">
+                            <span class="material-icons-outlined" style="vertical-align: middle; font-size: 18px;">add_circle</span> 新しいプロジェクトを作る
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="btn-reset-filter" class="filter-reset-btn">フィルター解除 ✖</button>
+                <div class="user-profiles" id="header-users">
+                    <!-- JS rendered avatars -->
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Navigation (Tabs) -->
+        <nav class="main-nav">
+            <button class="tab-btn active" data-target="view-tasks">
+                <span class="material-icons-outlined">checklist_rtl</span> <span class="tab-label">やることリスト</span>
+            </button>
+            <button class="tab-btn" data-target="view-notes">
+                <span class="material-icons-outlined">auto_stories</span> <span class="tab-label">note管理</span>
+            </button>
+            <button class="tab-btn" data-target="view-ideas">
+                <span class="material-icons-outlined">tips_and_updates</span> <span class="tab-label">アイデアリスト</span>
+            </button>
+            <button class="tab-btn" data-target="view-event-prep">
+                <span class="material-icons-outlined">fact_check</span> <span class="tab-label">イベント準備</span>
+            </button>
+            <button class="tab-btn" data-target="view-calendar">
+                <span class="material-icons-outlined">edit_calendar</span> <span class="tab-label">統合カレンダー</span>
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- View: Tasks -->
+            <section id="view-tasks" class="view-section active">
+                <div class="section-header">
+                    <h2>✨ チームのやること（タスク）リスト</h2>
+                    <button class="btn btn-primary" id="btn-add-task">
+                        <span class="material-icons-outlined">add</span> タスク追加
+                    </button>
+                </div>
+                <div class="task-list-container" id="task-list">
+                    <!-- Tasks rendered here by JS -->
+                </div>
+            </section>
+
+            <!-- View: Notes -->
+            <section id="view-notes" class="view-section">
+                <div class="section-header">
+                    <h2>📝 note記事管理（アイデア＆進捗ボード）</h2>
+                    <button class="btn btn-primary" id="btn-add-note">
+                        <span class="material-icons-outlined">add</span> 記事アイデア追加
+                    </button>
+                </div>
+                <div class="kanban-board" id="kanban-board">
+                    <!-- Kanban columns rendered here by JS -->
+                </div>
+            </section>
+
+            <!-- View: Ideas -->
+            <section id="view-ideas" class="view-section">
+                <div class="section-header">
+                    <h2>💡 アイデアリスト（開発用）</h2>
+                    <button class="btn btn-primary" id="btn-add-dev-idea">
+                        <span class="material-icons-outlined">add</span> アイデア追加
+                    </button>
+                </div>
+                <div class="ideas-grid" id="ideas-grid">
+                    <!-- Ideas rendered here by JS -->
+                </div>
+            </section>
+
+            <!-- View: Event Prep -->
+            <section id="view-event-prep" class="view-section">
+                <div class="section-header">
+                    <h2>🎪 イベント準備管理</h2>
+                    <button class="btn btn-primary" id="btn-add-event">
+                        <span class="material-icons-outlined">event</span> イベント登録
+                    </button>
+                </div>
+                <p style="color:var(--text-secondary); font-weight:600; margin-bottom: 24px;">カレンダーで登録したイベントの手配や「準備タスク」を管理します</p>
+                <div class="event-prep-list" id="event-prep-list">
+                    <!-- Event Prep Checklists rendered by JS -->
+                </div>
+            </section>
+
+            <!-- View: Calendar -->
+            <section id="view-calendar" class="view-section">
+                <div class="section-header">
+                    <h2>📆 統合カレンダー</h2>
+                    <div style="width: 130px;"></div> <!-- placeholder to maintain flex space -->
+                </div>
+                <div class="calendar-container">
+                    <div class="calendar-header" style="display:flex; justify-content:center; align-items:center; gap:24px; margin-bottom:24px;">
+                        <button class="btn btn-icon" id="cal-prev" style="width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;"><span class="material-icons-outlined">chevron_left</span></button>
+                        <h3 id="cal-month-title" style="font-size:1.5rem; font-weight:700; width:150px; text-align:center;"></h3>
+                        <button class="btn btn-icon" id="cal-next" style="width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;"><span class="material-icons-outlined">chevron_right</span></button>
+                    </div>
+                    <div class="calendar-grid" id="calendar-grid" style="display:grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(100px, 1fr); gap:8px; flex:1; overflow-y:auto;">
+                        <!-- Calendar days rendered here by JS -->
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Project Modal -->
+    <div id="modal-project" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-project-title">新しいプロジェクトの作成</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-project">
+                    <div class="form-group">
+                        <label>プロジェクト名</label>
+                        <input type="text" id="input-project-name" required placeholder="例: 電子カルテ開発委員会">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">作成して切り替える</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="modal-task" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-task-title">タスクの追加</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-task">
+                    <input type="hidden" id="input-task-id" value="">
+                    <div class="form-group">
+                        <label>タスク名</label>
+                        <input type="text" id="input-task-name" required placeholder="例: 要件定義書の作成">
+                    </div>
+                    <div class="form-group">
+                        <label>期限</label>
+                        <input type="date" id="input-task-deadline" required>
+                    </div>
+                    <div class="form-group">
+                        <label>担当者（複数選択可）</label>
+                        <div class="checkbox-group" id="input-task-assignees"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Modal -->
+    <div id="modal-note" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-note-title">note記事・アイデアの追加</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-note">
+                    <input type="hidden" id="input-note-id" value="">
+                    <div class="form-group">
+                        <label>記事名 / タイトル</label>
+                        <input type="text" id="input-note-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ステータス</label>
+                        <select id="input-note-status">
+                            <option value="idea">アイデア段階</option>
+                            <option value="writing">執筆中</option>
+                            <option value="waiting">公開待ち</option>
+                            <option value="published">公開済み</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="padding: 16px; background: var(--google-blue-light); border-radius: var(--radius-sm); margin-top: 10px;">
+                        <p style="font-size: 0.85rem; color: var(--google-blue); font-weight: 600; margin-bottom: 12px;">🌟 投稿予定日と執筆メンバーを設定すれば、カレンダー上にアバター付きで記事の「期日」として直接表示されます！</p>
+                        <label>投稿予定日・リリース日 (任意)</label>
+                        <input type="date" id="input-note-date" style="margin-bottom: 12px;">
+                        <label>執筆メンバー (任意)</label>
+                        <div class="checkbox-group" id="input-note-assignees"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Modal -->
+    <div id="modal-event" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-event-title">イベント登録</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-event">
+                    <input type="hidden" id="input-event-id" value="">
+                    <div class="form-group">
+                        <label>イベント名</label>
+                        <input type="text" id="input-event-title" list="event-names-list" required autocomplete="off" placeholder="入力または選択してください">
+                        <datalist id="event-names-list"></datalist>
+                    </div>
+                    <div class="form-group" style="display:flex; gap:16px;">
+                        <div style="flex:1;">
+                            <label>開催日</label>
+                            <input type="date" id="input-event-date" required>
+                        </div>
+                        <div style="flex:1;">
+                            <label>場所</label>
+                            <input type="text" id="input-event-location">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>参加メンバー（複数選択可）</label>
+                        <div class="checkbox-group" id="input-event-participants"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>対象参加者（複数選択可）</label>
+                        <div class="checkbox-group" id="input-event-targets">
+                            <label><input type="checkbox" value="小学生"> 小学生</label>
+                            <label><input type="checkbox" value="中学生"> 中学生</label>
+                            <label><input type="checkbox" value="高校生"> 高校生</label>
+                            <label><input type="checkbox" value="大学生"> 大学生</label>
+                            <label><input type="checkbox" value="高齢者"> 高齢者</label>
+                            <label><input type="checkbox" value="一般向け"> 一般向け</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>メモ</label>
+                        <textarea id="input-event-memo" rows="2"></textarea>
+                    </div>
+                    <input type="hidden" id="input-event-is-copy" value="false">
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="btn-event-save">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dev Idea Modal (Add) -->
+    <div id="modal-dev-idea" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-dev-idea-title">開発アイデアの追加</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-dev-idea">
+                    <div class="form-group">
+                        <label>アイデア内容</label>
+                        <textarea id="input-dev-idea-content" rows="4" required placeholder="例: 新しい機能の構想について..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">追加</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dev Idea Modal (Edit) -->
+    <div id="modal-dev-idea-edit" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>アイデアリストの編集</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-dev-idea-edit">
+                    <input type="hidden" id="edit-idea-id">
+                    <div class="form-group">
+                        <label>アイデア内容を修正</label>
+                        <textarea id="edit-idea-content" rows="4" required></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">更新する</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Status Change Modal -->
+    <div id="modal-note-status" class="modal">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header">
+                <h3>ステータス変更</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body" style="padding-bottom:32px;">
+                <p id="status-target-title" style="margin-bottom:16px; font-weight:700; color:var(--text-main); font-size:1.1rem; text-align:center;"></p>
+                <div class="status-buttons" id="note-status-buttons">
+                    <!-- Javascript generates buttons here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK & Logic-->
+    <script type="module" src="app.js?v=5"></script>
+</body>
+</html>
