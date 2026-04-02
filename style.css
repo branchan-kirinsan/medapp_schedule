@@ -99,9 +99,17 @@ body {
 .task-left-actions { display: flex; gap: 12px; flex-wrap: wrap; border-right: 2px solid rgba(0,0,0,0.05); padding-right: 24px; align-items: center; min-width: 150px;}
 .task-info { flex: 1; }
 .task-right-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.task-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 6px; }
+.task-title-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+.task-title { font-size: 1.25rem; font-weight: 600; margin: 0; }
 .task-meta { font-size: 0.9rem; color: var(--text-secondary); display: flex; gap: 16px; align-items: center; font-weight: 600; }
 .task-meta span.urgent { color: var(--google-red); background: var(--google-red-light); padding: 2px 8px; border-radius: 12px; }
+
+/* Task Category Badges */
+.badge-category { display: inline-flex; align-items: center; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+.badge-category.idea { background: var(--google-yellow-light); color: var(--text-main); }
+.badge-category.note { background: var(--google-blue-light); color: var(--google-blue); }
+.badge-category.event { background: var(--google-green-light); color: var(--google-green); }
+.badge-category.other { background: var(--google-red-light); color: var(--google-red); }
 
 .assignee-checkbox-wrap { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.05); padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 2px solid transparent; transition: all var(--transition-fast); user-select: none; font-weight: 600; }
 .assignee-checkbox-wrap:hover { background: rgba(0,0,0,0.08); transform: translateY(-2px); }
@@ -137,14 +145,17 @@ body {
 .idea-card { padding: 24px; border-radius: var(--radius-md); box-shadow: 0 6px 12px rgba(0,0,0,0.08); min-height: 160px; font-size: 1.05rem; font-weight: 600; color: #333; transition: all var(--transition-fast); position: relative; }
 .idea-card::before { content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 40px; height: 15px; background: rgba(255,255,255,0.6); border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 .idea-card:hover { transform: translateY(-5px) rotate(-1deg); box-shadow: 0 12px 20px rgba(0,0,0,0.15); }
+.idea-card.completed { opacity: 0.6; box-shadow: none; border: 1px dashed rgba(0,0,0,0.1); }
+.idea-card.completed .idea-content { text-decoration: line-through; color: var(--text-secondary); }
 .idea-actions { position: absolute; bottom: 12px; right: 12px; display: flex; gap: 8px; opacity: 0; transition: opacity 0.2s; }
 .idea-card:hover .idea-actions { opacity: 1; }
+.icon-btn.complete.active { color: var(--google-green); background: white; }
 .icon-btn { background: rgba(255,255,255,0.6); border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
 .icon-btn:hover { background: white; transform: scale(1.1); }
 .icon-btn.edit { color: var(--google-blue); } .icon-btn.delete { color: var(--google-red); }
 
 /* Calendar - Simplified UI */
-.calendar-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--glass-shadow); padding: 24px; height: calc(100vh - 220px); display: flex; flex-direction: column; }
+.calendar-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--glass-shadow); padding: 24px; height: calc(100vh - 120px); display: flex; flex-direction: column; }
 .cal-day { border: 1px solid rgba(0,0,0,0.05); border-radius: var(--radius-sm); padding: 6px; background: rgba(255,255,255,0.5); transition: all var(--transition-fast); display:flex; flex-direction:column; }
 .cal-day:hover { background: white; transform: scale(1.02); z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .cal-day.today { border: 2px solid var(--google-blue); background: var(--google-blue-light); }
@@ -203,7 +214,7 @@ body {
   .app-header { padding: 0 16px; height: 64px; }
   .app-title { display: none; } /* Make room for avatars */
   .app-logo { font-size: 28px; }
-  .user-avatar { width: 36px; height: 36px; margin-left: -8px; }
+  .user-avatar { width: 36px; height: 36px; margin-left: -8px; flex-shrink: 0; min-width: 36px; min-height: 36px; }
   .header-right { gap: 12px; }
   
   .main-nav { padding: 0 12px; gap: 8px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
@@ -214,11 +225,14 @@ body {
 
   .main-content { padding: 16px; }
   .section-header h2 { font-size: 1.4rem; }
+  .section-header .btn-primary .btn-text { display: none; }
+  .section-header .btn-primary { padding: 8px; border-radius: 50%; min-width: 44px; height: 44px; justify-content: center; }
+  .hide-on-mobile { display: none !important; }
   .kanban-board { flex-direction: column; height: auto; overflow: visible; padding-bottom: 24px; gap: 16px; }
   .kanban-col { min-width: unset; width: 100%; box-shadow: none; }
   .ideas-grid { grid-template-columns: 1fr; }
-  .calendar-container { padding: 12px; height: auto; min-height: 50vh; }
-  .calendar-grid { grid-auto-rows: minmax(70px, auto); gap: 4px; }
+  .calendar-container { padding: 12px; height: calc(100vh - 125px) !important; min-height: unset; }
+  .calendar-grid { grid-auto-rows: 1fr; gap: 4px; }
   .cal-day-header { font-size: 0.75rem; }
   
   .task-item { flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px; }

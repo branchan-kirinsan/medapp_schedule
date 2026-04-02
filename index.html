@@ -11,7 +11,7 @@
     <!-- Google Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
     <!-- CSS -->
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
     <div class="app-container">
@@ -20,17 +20,7 @@
             <div class="header-left">
                 <span class="material-icons-outlined app-logo">rocket_launch</span>
                 <h1 class="app-title">共通点ゼロの医療アプリ開発チーム</h1>
-                <div class="dropdown" id="project-dropdown">
-                    <button class="dropdown-btn" id="current-project-btn">
-                        <span>読み込み中...</span> <span class="material-icons-outlined">arrow_drop_down</span>
-                    </button>
-                    <div class="dropdown-content" id="project-list">
-                        <!-- Projects injected by JS -->
-                        <a href="#" class="add-project-btn" id="btn-add-project">
-                            <span class="material-icons-outlined" style="vertical-align: middle; font-size: 18px;">add_circle</span> 新しいプロジェクトを作る
-                        </a>
-                    </div>
-                </div>
+
             </div>
             <div class="header-right">
                 <button id="btn-reset-filter" class="filter-reset-btn">フィルター解除 ✖</button>
@@ -66,7 +56,7 @@
                 <div class="section-header">
                     <h2>✨ チームのやること（タスク）リスト</h2>
                     <button class="btn btn-primary" id="btn-add-task">
-                        <span class="material-icons-outlined">add</span> タスク追加
+                        <span class="material-icons-outlined">add</span> <span class="btn-text">タスク追加</span>
                     </button>
                 </div>
                 <div class="task-list-container" id="task-list">
@@ -79,7 +69,7 @@
                 <div class="section-header">
                     <h2>📝 note記事管理（アイデア＆進捗ボード）</h2>
                     <button class="btn btn-primary" id="btn-add-note">
-                        <span class="material-icons-outlined">add</span> 記事アイデア追加
+                        <span class="material-icons-outlined">add</span> <span class="btn-text">記事アイデア追加</span>
                     </button>
                 </div>
                 <div class="kanban-board" id="kanban-board">
@@ -92,7 +82,7 @@
                 <div class="section-header">
                     <h2>💡 アイデアリスト（開発用）</h2>
                     <button class="btn btn-primary" id="btn-add-dev-idea">
-                        <span class="material-icons-outlined">add</span> アイデア追加
+                        <span class="material-icons-outlined">add</span> <span class="btn-text">アイデア追加</span>
                     </button>
                 </div>
                 <div class="ideas-grid" id="ideas-grid">
@@ -105,7 +95,7 @@
                 <div class="section-header">
                     <h2>🎪 イベント準備管理</h2>
                     <button class="btn btn-primary" id="btn-add-event">
-                        <span class="material-icons-outlined">event</span> イベント登録
+                        <span class="material-icons-outlined">event</span> <span class="btn-text">イベント登録</span>
                     </button>
                 </div>
                 <p style="color:var(--text-secondary); font-weight:600; margin-bottom: 24px;">カレンダーで登録したイベントの手配や「準備タスク」を管理します</p>
@@ -136,26 +126,7 @@
     </div>
 
     <!-- Modals -->
-    <!-- Project Modal -->
-    <div id="modal-project" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modal-project-title">新しいプロジェクトの作成</h3>
-                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
-            </div>
-            <div class="modal-body">
-                <form id="form-project">
-                    <div class="form-group">
-                        <label>プロジェクト名</label>
-                        <input type="text" id="input-project-name" required placeholder="例: 電子カルテ開発委員会">
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">作成して切り替える</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Task Modal -->
     <div id="modal-task" class="modal">
@@ -170,6 +141,16 @@
                     <div class="form-group">
                         <label>タスク名</label>
                         <input type="text" id="input-task-name" required placeholder="例: 要件定義書の作成">
+                    </div>
+                    <div class="form-group">
+                        <label>関連カテゴリ</label>
+                        <select id="input-task-category">
+                            <option value="none">指定なし</option>
+                            <option value="idea">💡 アイデアリスト</option>
+                            <option value="note">📝 note記事</option>
+                            <option value="event">🎪 イベント</option>
+                            <option value="other">📦 その他</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>期限</label>
@@ -338,6 +319,6 @@
     </div>
 
     <!-- Firebase SDK & Logic-->
-    <script type="module" src="app.js?v=5"></script>
+    <script type="module" src="app.js?v=7"></script>
 </body>
 </html>

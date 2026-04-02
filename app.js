@@ -46,15 +46,14 @@ const NOTE_STATUSES = {
     'published': { label: '公開済み', class: 's-published' }
 };
 
-let currentProjectId = null;
 let filterUserId = null; /* Global user filter */
-let projects = [], tasks = [], notes = [], ideas = [], events = [];
+let tasks = [], notes = [], ideas = [], events = [];
 let unsubTasks, unsubNotes, unsubIdeas, unsubEvents;
 
 document.addEventListener('DOMContentLoaded', () => {
     initUI();
     setupEventListeners();
-    setupProjectListener();
+    fetchAllData();
 });
 
 function getAvatarHtml(user, size='44px', fontSize='1rem', addClass='') {
@@ -106,36 +105,35 @@ document.getElementById('btn-reset-filter').addEventListener('click', () => {
     renderAll();
 });
 
-// --- Project Management ---
-function setupProjectListener() {
-    const q = query(collection(db, 'projects'), orderBy('createdAt', 'asc'));
-    onSnapshot(q, (snapshot) => {
-        projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderProjectDropdown();
-        
-        if (!currentProjectId && projects.length > 0) selectProject(projects[0].id);
-        else if (projects.length === 0) {
-            document.getElementById('current-project-btn').innerHTML = `<span>プロジェクトがありません</span> <span class="material-icons-outlined">arrow_drop_down</span>`;
-            document.getElementById('task-list').innerHTML = `<p style="padding:20px;">まずは左上の「新しいプロジェクトを作る」からプロジェクトを作成してください！</p>`;
-        }
-    }, (error) => {
-        console.error("Firebase Snapshot Error:", error);
-        if (error.code === 'permission-denied') {
-            document.body.innerHTML = `
-                <div style="padding: 40px; text-align: center; background: #ffebee; color: #c62828; height: 100vh; overflow-y: auto;">
-                    <h1 style="font-size: 2rem; margin-bottom: 20px;">🚨 データベースへのアクセスが拒否されています</h1>
-                    <p style="font-size: 1.1rem; font-weight: bold; margin-bottom: 20px;">
-                        あなたのFirebase (Firestore) の「ルール」がロックされたままであるため、データの読み書きが一切できません。<br>
-                        このため、アプリが【モックアップのように見えたり、何も表示されない状態】になっています！
-                    </p>
-                    <div style="background: white; padding: 30px; border-radius: 12px; display: inline-block; text-align: left; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 2px solid #c62828;">
-                        <h3 style="color: #c62828; margin-top:0;">【これを直すための超簡単３ステップ】</h3>
-                        <ol style="line-height: 1.8; font-size: 1.1rem; margin-top: 16px; margin-bottom:20px;">
-                            <li><a href="https://console.firebase.google.com/" target="_blank">Firebaseコンソール</a>を開く。</li>
-                            <li>「medapp-schedule」を選択し、左メニューから「<b>Firestore Database</b>」を選んで「<b>ルール</b>」タブを開く。</li>
-                            <li>以下のコードを貼り付けて「<b>公開</b>」ボタンを押す！</li>
-                        </ol>
-                        <pre style="background: #f8f9fa; padding: 16px; border-radius: 8px; font-weight: bold; border: 1px solid #dadce0;">
+// --- Data Fetching ---
+function fetchAllData() {
+    if (unsubTasks) unsubTasks(); if (unsubNotes) unsubNotes(); if (unsubIdeas) unsubIdeas(); if (unsubEvents) unsubEvents();
+    tasks = []; notes = []; ideas = []; events = [];
+    
+    unsubTasks = onSnapshot(collection(db, 'tasks'), snap => { tasks = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); }, (error) => handleFirebaseError(error));
+    unsubNotes = onSnapshot(collection(db, 'notes'), snap => { notes = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
+    unsubIdeas = onSnapshot(collection(db, 'ideas'), snap => { ideas = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
+    unsubEvents = onSnapshot(collection(db, 'events'), snap => { events = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
+}
+
+function handleFirebaseError(error) {
+    console.error("Firebase Snapshot Error:", error);
+    if (error.code === 'permission-denied') {
+        document.body.innerHTML = `
+            <div style="padding: 40px; text-align: center; background: #ffebee; color: #c62828; height: 100vh; overflow-y: auto;">
+                <h1 style="font-size: 2rem; margin-bottom: 20px;">🚨 データベースへのアクセスが拒否されています</h1>
+                <p style="font-size: 1.1rem; font-weight: bold; margin-bottom: 20px;">
+                    あなたのFirebase (Firestore) の「ルール」がロックされたままであるため、データの読み書きが一切できません。<br>
+                    このため、アプリが【モックアップのように見えたり、何も表示されない状態】になっています！
+                </p>
+                <div style="background: white; padding: 30px; border-radius: 12px; display: inline-block; text-align: left; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 2px solid #c62828;">
+                    <h3 style="color: #c62828; margin-top:0;">【これを直すための超簡単３ステップ】</h3>
+                    <ol style="line-height: 1.8; font-size: 1.1rem; margin-top: 16px; margin-bottom:20px;">
+                        <li><a href="https://console.firebase.google.com/" target="_blank">Firebaseコンソール</a>を開く。</li>
+                        <li>「medapp-schedule」を選択し、左メニューから「<b>Firestore Database</b>」を選んで「<b>ルール</b>」タブを開く。</li>
+                        <li>以下のコードを貼り付けて「<b>公開</b>」ボタンを押す！</li>
+                    </ol>
+                    <pre style="background: #f8f9fa; padding: 16px; border-radius: 8px; font-weight: bold; border: 1px solid #dadce0;">
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -144,54 +142,15 @@ service cloud.firestore {
     }
   }
 }</pre>
-                        <p style="margin-top: 24px; font-weight: bold; color: #1565c0; font-size: 1.2rem;">✨設定を保存したら、この画面を「F5」キーで再読み込みしてください！✨</p>
-                    </div>
+                    <p style="margin-top: 24px; font-weight: bold; color: #1565c0; font-size: 1.2rem;">✨設定を保存したら、この画面を「F5」キーで再読み込みしてください！✨</p>
                 </div>
-            `;
-        }
-    });
-}
-
-function renderProjectDropdown() {
-    const list = document.getElementById('project-list');
-    let html = projects.map(p => `<a onclick="window.selectProject('${p.id}')" style="${p.id === currentProjectId ? 'font-weight:700; color:var(--google-blue);' : ''}">${p.name} ${p.id === currentProjectId ? ' ✓' : ''}</a>`).join('');
-    html += `<a href="#" class="add-project-btn" id="btn-dropdown-add-project"><span class="material-icons-outlined" style="vertical-align: middle; font-size: 18px;">add_circle</span> 新しいプロジェクトを作る</a>`;
-    list.innerHTML = html;
-
-    document.getElementById('btn-dropdown-add-project').addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('modal-project').classList.add('active');
-        document.getElementById('project-dropdown').classList.remove('active');
-    });
-    
-    if (currentProjectId) {
-        const currentData = projects.find(p => p.id === currentProjectId);
-        if (currentData) document.getElementById('current-project-btn').innerHTML = `<span>${currentData.name}</span> <span class="material-icons-outlined">arrow_drop_down</span>`;
+            </div>
+        `;
     }
-}
-
-window.selectProject = (projectId) => {
-    currentProjectId = projectId;
-    renderProjectDropdown();
-    
-    if (unsubTasks) unsubTasks(); if (unsubNotes) unsubNotes(); if (unsubIdeas) unsubIdeas(); if (unsubEvents) unsubEvents();
-    tasks = []; notes = []; ideas = []; events = [];
-    renderAll();
-    
-    const pRef = where("projectId", "==", currentProjectId);
-    unsubTasks = onSnapshot(query(collection(db, 'tasks'), pRef), snap => { tasks = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
-    unsubNotes = onSnapshot(query(collection(db, 'notes'), pRef), snap => { notes = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
-    unsubIdeas = onSnapshot(query(collection(db, 'ideas'), pRef), snap => { ideas = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
-    unsubEvents = onSnapshot(query(collection(db, 'events'), pRef), snap => { events = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
 }
 
 // --- Routing / General Listeners ---
 function setupEventListeners() {
-    document.getElementById('current-project-btn').addEventListener('click', (e) => {
-        e.stopPropagation(); document.getElementById('project-dropdown').classList.toggle('active');
-    });
-    document.addEventListener('click', () => document.getElementById('project-dropdown').classList.remove('active'));
-
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -205,13 +164,11 @@ function setupEventListeners() {
 
     const setupModal = (btnId, modalId) => {
         document.getElementById(btnId).addEventListener('click', () => {
-            if(!currentProjectId && modalId !== 'modal-project') return alert('まずはプロジェクトを作成（または選択）してください！');
             document.getElementById(modalId).classList.add('active');
         });
     };
     
     document.getElementById('btn-add-task').addEventListener('click', () => {
-        if(!currentProjectId) return alert('まずはプロジェクトを作成（または選択）してください！');
         document.getElementById('form-task').reset();
         document.getElementById('input-task-id').value = "";
         document.getElementById('modal-task-title').innerText = "タスクの追加";
@@ -219,7 +176,6 @@ function setupEventListeners() {
     });
 
     document.getElementById('btn-add-note').addEventListener('click', () => {
-        if(!currentProjectId) return alert('まずはプロジェクトを作成（または選択）してください！');
         document.getElementById('form-note').reset();
         document.getElementById('input-note-id').value = "";
         document.getElementById('modal-note-title').innerText = "note記事・アイデアの追加";
@@ -229,7 +185,6 @@ function setupEventListeners() {
     setupModal('btn-add-dev-idea', 'modal-dev-idea');
     
     document.getElementById('btn-add-event').addEventListener('click', () => {
-        if(!currentProjectId) return alert('まずはプロジェクトを作成（または選択）してください！');
         document.getElementById('form-event').reset();
         document.getElementById('input-event-id').value = "";
         document.getElementById('modal-event-title').innerText = "イベント登録";
@@ -259,7 +214,6 @@ function setupEventListeners() {
     document.getElementById('cal-prev').addEventListener('click', () => changeMonth(-1));
     document.getElementById('cal-next').addEventListener('click', () => changeMonth(1));
 
-    document.getElementById('form-project').addEventListener('submit', handleProjectSubmit);
     document.getElementById('form-task').addEventListener('submit', handleTaskSubmit);
     document.getElementById('form-note').addEventListener('submit', handleNoteSubmit);
     document.getElementById('form-event').addEventListener('submit', handleEventSubmit);
@@ -292,18 +246,52 @@ const isRelatedToFilter = (item) => {
     return false; // idea & events without participant match
 }
 
+function getCategoryLabel(cat) {
+    if(cat === 'idea') return '💡 アイデアリスト';
+    if(cat === 'note') return '📝 note記事';
+    if(cat === 'event') return '🎪 イベント';
+    if(cat === 'other') return '📦 その他';
+    return '';
+}
+
 function renderTasks() {
     const container = document.getElementById('task-list');
-    const filteredTasks = tasks.filter(t => !filterUserId || t.assignees.some(a => a.userId === filterUserId));
+
+    const noteVirtualTasks = notes.filter(n => n.status !== 'idea').map(n => {
+        let prefix = '';
+        if (n.status === 'writing') prefix = '記事執筆: ';
+        else if (n.status === 'waiting') prefix = '記事の公開: ';
+        else if (n.status === 'published') prefix = '記事の公開: ';
+
+        return {
+            id: `virt_note_${n.id}`,
+            isVirtualNote: true,
+            originalNoteId: n.id,
+            title: `${prefix}${n.title}`,
+            category: 'note',
+            deadline: n.date,
+            assignees: (n.assignees || []).map(userId => ({
+                userId,
+                isCompleted: n.status === 'published'
+            }))
+        };
+    });
+
+    const combinedTasks = [...tasks, ...noteVirtualTasks];
+    const filteredTasks = combinedTasks.filter(t => !filterUserId || t.assignees.some(a => a.userId === filterUserId));
     
     if (filteredTasks.length === 0) {
         container.innerHTML = `<p style="color:var(--text-secondary); padding: 20px 0;">表示するタスクがありません✨</p>`; return;
     }
 
     const now = new Date();
-    // Sort logic: closest deadline first (asc). If no deadline, keep at bottom.
+    // Sort logic: 1. Incomplete first, 2. Closest deadline first.
     const sortedTasks = [...filteredTasks].sort((a,b) => {
-        if(!a.deadline) return 1; if(!b.deadline) return -1;
+        const aDone = a.assignees.length > 0 && a.assignees.every(as => as.isCompleted);
+        const bDone = b.assignees.length > 0 && b.assignees.every(as => as.isCompleted);
+        
+        if (aDone !== bDone) return aDone ? 1 : -1;
+        if (!a.deadline) return 1; if (!b.deadline) return -1;
         return new Date(a.deadline) - new Date(b.deadline);
     });
 
@@ -324,14 +312,21 @@ function renderTasks() {
                     `).join('')}
                 </div>
                 <div class="task-info">
-                    <h3 class="task-title ${isUrgent ? 'overdue' : ''}">${task.title}</h3>
+                    <div class="task-title-row">
+                        ${task.category && task.category !== 'none' ? `<span class="badge-category ${task.category}">${getCategoryLabel(task.category)}</span>` : ''}
+                        <h3 class="task-title ${isUrgent ? 'overdue' : ''}">${task.title}</h3>
+                    </div>
                     <div class="task-meta">
-                        <span class="${isUrgent ? 'urgent' : ''}"><span class="material-icons-outlined" style="font-size:16px;">event</span> 期限: ${deadlineDate} ${isUrgent ? '(直近!!)' : ''}</span>
+                        <span class="${isUrgent ? 'urgent' : ''}"><span class="material-icons-outlined" style="font-size:16px;">event</span> 期限: ${deadlineDate} <span class="hide-on-mobile">${isUrgent ? '(直近!!)' : ''}</span></span>
                     </div>
                 </div>
                 <div class="task-right-actions">
-                    <button class="icon-btn edit" style="width:28px; height:28px; min-height:28px;" onclick="window.openEditTask('${task.id}')" title="編集"><span class="material-icons-outlined" style="font-size:16px;">edit</span></button>
-                    <button class="icon-btn delete" style="width:28px; height:28px; min-height:28px;" onclick="window.deleteTask('${task.id}')" title="削除"><span class="material-icons-outlined" style="font-size:16px;">delete</span></button>
+                    ${task.isVirtualNote ? `
+                        <button class="icon-btn edit" style="width:28px; height:28px; min-height:28px;" onclick="window.openEditNote(event, '${task.originalNoteId}')" title="noteを編集"><span class="material-icons-outlined" style="font-size:16px;">edit</span></button>
+                    ` : `
+                        <button class="icon-btn edit" style="width:28px; height:28px; min-height:28px;" onclick="window.openEditTask('${task.id}')" title="編集"><span class="material-icons-outlined" style="font-size:16px;">edit</span></button>
+                        <button class="icon-btn delete" style="width:28px; height:28px; min-height:28px;" onclick="window.deleteTask('${task.id}')" title="削除"><span class="material-icons-outlined" style="font-size:16px;">delete</span></button>
+                    `}
                 </div>
             </div>
         `;
@@ -343,6 +338,7 @@ window.openEditTask = (taskId) => {
     if (!task) return;
     document.getElementById('input-task-id').value = task.id;
     document.getElementById('input-task-name').value = task.title;
+    document.getElementById('input-task-category').value = task.category || "none";
     document.getElementById('input-task-deadline').value = task.deadline || "";
     
     document.querySelectorAll('#input-task-assignees input[type="checkbox"]').forEach(cb => {
@@ -360,6 +356,17 @@ window.deleteTask = async (taskId) => {
 }
 
 window.toggleTaskAssignee = async (taskId, userId) => {
+    if (taskId.startsWith('virt_note_')) {
+        const noteId = taskId.replace('virt_note_', '');
+        const note = notes.find(n => n.id === noteId);
+        if (note) {
+            const isCurrentlyCompleted = note.status === 'published';
+            const newStatus = isCurrentlyCompleted ? 'waiting' : 'published';
+            try { await updateDoc(doc(db, 'notes', noteId), { status: newStatus }); } catch (err) { console.error(err); }
+        }
+        return;
+    }
+
     const task = tasks.find(t => t.id === taskId);
     if(task) {
         const updatedAssignees = task.assignees.map(a => a.userId === userId ? { ...a, isCompleted: !a.isCompleted } : a);
@@ -436,13 +443,20 @@ function renderIdeas() {
     if (ideas.length === 0) {
         container.innerHTML = `<p style="color:var(--text-secondary); padding: 20px 0;">アイデアはまだありません💡</p>`; return;
     }
-    // Ideas don't have assignees right now, but we show them all to everyone. If we wanted, we could filter by creator.
-    container.innerHTML = ideas.map((idea, index) => {
+    
+    // Sort: incomplete first
+    const sortedIdeas = [...ideas].sort((a, b) => (a.isCompleted === b.isCompleted) ? 0 : a.isCompleted ? 1 : -1);
+
+    container.innerHTML = sortedIdeas.map((idea, index) => {
         const bg = IDEA_COLORS[index % IDEA_COLORS.length];
+        const isDone = idea.isCompleted || false;
         return `
-            <div class="idea-card" style="background: ${bg};">
-                ${idea.content.replace(/\n/g, '<br>')}
+            <div class="idea-card ${isDone ? 'completed' : ''}" style="background: ${isDone ? '#f1f3f4' : bg};">
+                <div class="idea-content">${idea.content.replace(/\n/g, '<br>')}</div>
                 <div class="idea-actions">
+                    <button class="icon-btn complete ${isDone ? 'active' : ''}" onclick="window.toggleIdeaCompletion('${idea.id}')" title="${isDone ? '未完了に戻す' : '完了にする'}">
+                        <span class="material-icons-outlined">${isDone ? 'check_circle' : 'radio_button_unchecked'}</span>
+                    </button>
                     <button class="icon-btn edit" onclick="window.openEditIdea('${idea.id}')"><span class="material-icons-outlined">edit</span></button>
                     <button class="icon-btn delete" onclick="window.deleteIdea('${idea.id}')"><span class="material-icons-outlined">delete</span></button>
                 </div>
@@ -461,6 +475,13 @@ window.openEditIdea = (ideaId) => {
 window.deleteIdea = async (ideaId) => {
     if(confirm('このアイデア付箋を削除してもよろしいですか？')) {
         try { await deleteDoc(doc(db, 'ideas', ideaId)); } catch(e) { console.error(e); }
+    }
+}
+window.toggleIdeaCompletion = async (ideaId) => {
+    const idea = ideas.find(i => i.id === ideaId);
+    if(idea) {
+        try { await updateDoc(doc(db, 'ideas', ideaId), { isCompleted: !idea.isCompleted }); }
+        catch(e) { console.error(e); }
     }
 }
 
@@ -490,22 +511,27 @@ function renderCalendar() {
         
         let badgesHtml = '';
         
-        const renderBadge = (item, typeClass, icon, title, assignedArr) => {
-            const avatarsHtml = (assignedArr || []).map(u => {
-                const uid = u.userId || u;
+        const renderBadge = (item, type, icon, title, userList, id) => {
+            const usersStr = userList && userList.length > 0 ? (Array.isArray(userList) ? userList : userList.map(u => u.userId || u)) : [];
+            const avatarsHtml = usersStr.filter(u => !filterUserId || u === filterUserId).map(uid => {
                 return getAvatarHtml(uid, '18px', '0', 'cal-avatar');
             }).join('');
             
-            return `<div class="cal-event-badge ${typeClass}" title="${title}">
-                <span class="material-icons-outlined" style="font-size:12px">${icon}</span> 
-                <span style="flex:1; overflow:hidden; text-overflow:ellipsis;">${title}</span>
+            let label = title;
+            let typeClass = type;
+            if(type === 'task') label = 'タスク';
+            if(type === 'note') label = 'note';
+            if(type === 'custom') { label = 'イベント'; typeClass = 'custom'; }
+
+            return `<div class="cal-event-badge ${typeClass}" title="${title}" onclick="event.stopPropagation(); window.openCalendarDetail('${type}', '${id}')">
+                <span style="flex:1; font-size:11px; text-align:left;">${label}</span>
                 <div style="display:flex; gap:2px; margin-left:4px;">${avatarsHtml}</div>
             </div>`;
         };
         
-        dayTasks.forEach(t => badgesHtml += renderBadge(t, 'task', 'task_alt', t.title, t.assignees));
-        dayNotes.forEach(n => badgesHtml += renderBadge(n, 'note', 'article', n.title, n.assignees));
-        dayEvents.forEach(e => badgesHtml += renderBadge(e, 'custom', 'event', e.title, e.participants));
+        dayTasks.forEach(t => badgesHtml += renderBadge(t, 'task', 'task_alt', t.title, t.assignees, t.id));
+        dayNotes.forEach(n => badgesHtml += renderBadge(n, 'note', 'article', n.title, n.assignees, n.id));
+        dayEvents.forEach(e => badgesHtml += renderBadge(e, 'custom', 'event', e.title, e.participants, e.id));
         
         const dayDiv = document.createElement('div');
         dayDiv.className = `cal-day ${isToday ? 'today' : ''}`;
@@ -514,6 +540,12 @@ function renderCalendar() {
     }
 }
 function changeMonth(delta) { currentCalDate.setMonth(currentCalDate.getMonth() + delta); renderCalendar(); }
+
+window.openCalendarDetail = (type, id) => {
+    if (type === 'task') window.openEditTask(id);
+    else if (type === 'note') window.openEditNote(new Event('click'), id);
+    else if (type === 'custom') window.openEditEvent(id);
+};
 
 // --- Event Prep Rendering ---
 function renderEventPrep() {
@@ -539,7 +571,7 @@ function renderEventPrep() {
                 <div class="prep-header">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <h3 style="margin:0;"><span class="material-icons-outlined">event_available</span> ${ev.title} </h3>
-                        <span style="font-size:0.9rem; color:var(--text-secondary);">(${ev.date})</span>
+                        <span style="font-size:0.9rem; color:var(--text-secondary);"><span class="hide-on-mobile">(${ev.date})</span></span>
                         <button class="icon-btn edit" style="width:28px; height:28px; min-height:28px;" onclick="window.openEditEvent('${ev.id}')" title="イベントを編集"><span class="material-icons-outlined" style="font-size:16px;">edit</span></button>
                         <button class="icon-btn delete" style="width:28px; height:28px; min-height:28px;" onclick="window.deleteEvent('${ev.id}')" title="イベントを削除"><span class="material-icons-outlined" style="font-size:16px;">delete</span></button>
                     </div>
@@ -614,21 +646,11 @@ window.deleteEvent = async (eventId) => {
 }
 
 // --- Forms Submit Handlers ---
-async function handleProjectSubmit(e) {
-    e.preventDefault();
-    const name = document.getElementById('input-project-name').value;
-    try {
-        const docRef = await addDoc(collection(db, 'projects'), { name, createdAt: new Date().toISOString() });
-        document.getElementById('modal-project').classList.remove('active');
-        e.target.reset(); selectProject(docRef.id);
-    } catch(err) { console.error(err); alert('作成失敗');}
-}
-
 async function handleTaskSubmit(e) {
     e.preventDefault();
-    if(!currentProjectId) return;
     const id = document.getElementById('input-task-id').value;
     const title = document.getElementById('input-task-name').value;
+    const category = document.getElementById('input-task-category').value;
     const deadline = document.getElementById('input-task-deadline').value;
     const checks = Array.from(document.querySelectorAll('#input-task-assignees input:checked')).map(cb => cb.value);
     
@@ -641,9 +663,9 @@ async function handleTaskSubmit(e) {
                 const existing = task.assignees.find(a => a.userId === userId);
                 return existing ? existing : { userId, isCompleted: false };
             });
-            await updateDoc(doc(db, 'tasks', id), { title, deadline, assignees });
+            await updateDoc(doc(db, 'tasks', id), { title, category, deadline, assignees });
         } else {
-            await addDoc(collection(db, 'tasks'), { projectId: currentProjectId, title, deadline, assignees: checks.map(userId => ({ userId, isCompleted: false })), createdAt: new Date().toISOString() });
+            await addDoc(collection(db, 'tasks'), { title, category, deadline, assignees: checks.map(userId => ({ userId, isCompleted: false })), createdAt: new Date().toISOString() });
         }
         document.getElementById('modal-task').classList.remove('active'); e.target.reset();
     } catch(err) { console.error(err); }
@@ -651,7 +673,6 @@ async function handleTaskSubmit(e) {
 
 async function handleNoteSubmit(e) {
     e.preventDefault();
-    if(!currentProjectId) return;
     const id = document.getElementById('input-note-id').value;
     const title = document.getElementById('input-note-title').value;
     const status = document.getElementById('input-note-status').value;
@@ -662,7 +683,7 @@ async function handleNoteSubmit(e) {
         if (id) {
             await updateDoc(doc(db, 'notes', id), { title, status, date: date || null, assignees });
         } else {
-            await addDoc(collection(db, 'notes'), { projectId: currentProjectId, title, status, date: date || null, assignees, createdAt: new Date().toISOString() });
+            await addDoc(collection(db, 'notes'), { title, status, date: date || null, assignees, createdAt: new Date().toISOString() });
         }
         document.getElementById('modal-note').classList.remove('active'); e.target.reset();
     } catch(err) { console.error(err); }
@@ -670,7 +691,6 @@ async function handleNoteSubmit(e) {
 
 async function handleEventSubmit(e) {
     e.preventDefault();
-    if(!currentProjectId) return;
     const id = document.getElementById('input-event-id').value;
     const title = document.getElementById('input-event-title').value;
     const date = document.getElementById('input-event-date').value;
@@ -683,7 +703,7 @@ async function handleEventSubmit(e) {
         if (id) {
             await updateDoc(doc(db, 'events', id), { title, date, location, memo, participants, targets });
         } else {
-            await addDoc(collection(db, 'events'), { projectId: currentProjectId, title, date, location, memo, participants, targets, prepTasks: [], createdAt: new Date().toISOString() });
+            await addDoc(collection(db, 'events'), { title, date, location, memo, participants, targets, prepTasks: [], createdAt: new Date().toISOString() });
         }
         document.getElementById('modal-event').classList.remove('active'); 
         e.target.reset();
@@ -694,10 +714,9 @@ async function handleEventSubmit(e) {
 
 async function handleDevIdeaSubmit(e) {
     e.preventDefault();
-    if(!currentProjectId) return;
     const content = document.getElementById('input-dev-idea-content').value;
     try {
-        await addDoc(collection(db, 'ideas'), { projectId: currentProjectId, content, createdAt: new Date().toISOString() });
+        await addDoc(collection(db, 'ideas'), { content, isCompleted: false, createdAt: new Date().toISOString() });
         document.getElementById('modal-dev-idea').classList.remove('active'); e.target.reset();
     } catch(err) { console.error(err); }
 }
