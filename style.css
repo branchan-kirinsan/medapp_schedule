@@ -259,14 +259,25 @@ details[open] summary::before { transform: rotate(90deg); }
   .kanban-board { flex-direction: column; height: auto; overflow: visible; padding-bottom: 24px; gap: 16px; }
   .kanban-col { min-width: unset; width: 100%; box-shadow: none; }
   .ideas-grid { grid-template-columns: 1fr; }
-  .calendar-container { padding: 12px; height: calc(100vh - 125px) !important; min-height: unset; }
-  .calendar-grid { grid-auto-rows: 1fr; gap: 4px; }
+  .calendar-container { padding: 0; height: calc(100vh - 110px) !important; min-height: unset; border-radius: 0; border: none; box-shadow: none; }
+  .calendar-grid { grid-auto-rows: 1fr; gap: 0; border: 1px solid rgba(0,0,0,0.1); border-right: none; border-bottom: none; }
+  .cal-day { border-radius: 0; border: none; border-right: 1px solid rgba(0,0,0,0.05); border-bottom: 1px solid rgba(0,0,0,0.05); background: white; padding: 4px; box-shadow: none; }
+  .cal-day:hover { transform: none; box-shadow: none; }
   .cal-day-header { font-size: 0.75rem; }
   
   /* Mobile Calendar Event Dots */
-  .cal-event-badge { width: 8px; height: 8px; border-radius: 50%; padding: 0; margin: 1px; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-  .cal-event-badge span, .cal-event-badge .cal-avatar { display: none; }
-  .cal-day > div:last-child { flex-direction: row !important; flex-wrap: wrap; gap: 2px !important; justify-content: flex-end; align-items: flex-end; }
+  .calendar-grid .cal-event-badge { width: 8px; height: 8px; border-radius: 50%; padding: 0; margin: 1px; display: inline-block; box-shadow: none; }
+  .calendar-grid .cal-event-badge span, .calendar-grid .cal-event-badge .cal-avatar { display: none !important; }
+  .calendar-grid .cal-event-badge.task { background: var(--google-yellow); }
+  .calendar-grid .cal-event-badge.note { background: var(--google-blue); }
+  .calendar-grid .cal-event-badge.custom { background: var(--google-green); }
+  .calendar-grid .cal-event-badge.meeting { background: var(--google-red); }
+  .calendar-grid .cal-day > div:last-child { flex-direction: row !important; flex-wrap: wrap; gap: 2px !important; justify-content: flex-end; align-items: flex-end; }
+  
+  /* Details Modal Event Badges (Mobile) */
+  #modal-cal-detail .cal-event-badge { width: 100%; height: auto; display: flex; border-radius: 8px; padding: 12px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+  #modal-cal-detail .cal-event-badge span { display: block !important; font-size: 1.05rem !important; }
+  #modal-cal-detail .cal-event-badge .cal-avatar { display: block !important; width: 28px !important; height: 28px !important; border-width: 2px !important; }
   
   .task-item { flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px; }
   .task-left-actions { width: 100%; border-right: none; border-bottom: 1px solid rgba(0,0,0,0.1); padding-right: 0; padding-bottom: 12px; }
