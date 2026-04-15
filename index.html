@@ -12,6 +12,11 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
     <!-- CSS -->
     <link rel="stylesheet" href="style.css?v=7">
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            alert("エラーが発生しました: " + msg + " at " + line + ":" + col);
+        };
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -43,6 +48,9 @@
             </button>
             <button class="tab-btn" data-target="view-event-prep">
                 <span class="material-icons-outlined">fact_check</span> <span class="tab-label">イベント準備</span>
+            </button>
+            <button class="tab-btn" data-target="view-meetings">
+                <span class="material-icons-outlined">groups</span> <span class="tab-label">ミーティング予定</span>
             </button>
             <button class="tab-btn" data-target="view-calendar">
                 <span class="material-icons-outlined">edit_calendar</span> <span class="tab-label">統合カレンダー</span>
@@ -119,6 +127,19 @@
                     <div class="calendar-grid" id="calendar-grid" style="display:grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(100px, 1fr); gap:8px; flex:1; overflow-y:auto;">
                         <!-- Calendar days rendered here by JS -->
                     </div>
+                </div>
+            </section>
+
+            <!-- View: Meetings -->
+            <section id="view-meetings" class="view-section">
+                <div class="section-header">
+                    <h2>🤝 ミーティング予定</h2>
+                    <button class="btn btn-primary" id="btn-add-meeting">
+                        <span class="material-icons-outlined">add</span> <span class="btn-text">ミーティング追加</span>
+                    </button>
+                </div>
+                <div class="meetings-list" id="meetings-list" style="display:flex; flex-direction:column; gap:16px;">
+                    <!-- Meetings rendered here by JS -->
                 </div>
             </section>
 
@@ -272,6 +293,16 @@
                         <label>アイデア内容</label>
                         <textarea id="input-dev-idea-content" rows="4" required placeholder="例: 新しい機能の構想について..."></textarea>
                     </div>
+                    <div class="form-group" style="display:flex; gap:16px;">
+                        <div style="flex:1;">
+                            <label>リリース目標</label>
+                            <input type="date" id="input-dev-idea-date">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>担当者（複数選択可）</label>
+                        <div class="checkbox-group" id="input-dev-idea-assignees"></div>
+                    </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">追加</button>
                     </div>
@@ -293,6 +324,16 @@
                     <div class="form-group">
                         <label>アイデア内容を修正</label>
                         <textarea id="edit-idea-content" rows="4" required></textarea>
+                    </div>
+                    <div class="form-group" style="display:flex; gap:16px;">
+                        <div style="flex:1;">
+                            <label>リリース目標</label>
+                            <input type="date" id="edit-idea-date">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>担当者（複数選択可）</label>
+                        <div class="checkbox-group" id="edit-idea-assignees"></div>
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">更新する</button>
@@ -318,7 +359,79 @@
         </div>
     </div>
 
+    <!-- Meeting Modal -->
+    <div id="modal-meeting" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-meeting-title">ミーティングの追加</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-meeting">
+                    <input type="hidden" id="input-meeting-id" value="">
+                    
+                    <div class="form-group" style="display:flex; gap:24px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 12px;">
+                        <label style="display:flex; align-items:center; gap:6px; font-weight:700; cursor:pointer;">
+                            <input type="radio" name="meeting_type" value="online" checked onchange="window.toggleMeetingType()"> <span class="material-icons-outlined" style="color:var(--google-blue);">laptop_mac</span> オンライン
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; font-weight:700; cursor:pointer;">
+                            <input type="radio" name="meeting_type" value="offline" onchange="window.toggleMeetingType()"> <span class="material-icons-outlined" style="color:var(--google-green);">directions_run</span> オフライン
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>ミーティング名 / 議題</label>
+                        <input type="text" id="input-meeting-title" required placeholder="例: 定例ミーティング">
+                    </div>
+
+                    <div class="form-group" style="display:flex; gap:16px;">
+                        <div style="flex:1;">
+                            <label>開催日</label>
+                            <input type="date" id="input-meeting-date" required>
+                        </div>
+                        <div style="flex:1;">
+                            <label id="label-meeting-time">時間</label>
+                            <input type="time" id="input-meeting-time" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="group-meeting-location" style="display:none;">
+                        <label>集合場所</label>
+                        <input type="text" id="input-meeting-location" placeholder="例: 〇〇駅 改札前">
+                    </div>
+
+                    <div class="form-group">
+                        <label>メモ</label>
+                        <textarea id="input-meeting-memo" rows="2" placeholder="持ち物やアジェンダなど..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>参加メンバー（複数選択可）</label>
+                        <div class="checkbox-group" id="input-meeting-participants"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="btn-meeting-save">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar Day Detail Modal for Mobile -->
+    <div id="modal-cal-detail" class="modal">
+        <div class="modal-content" style="max-height: 80vh;">
+            <div class="modal-header">
+                <h3 id="modal-cal-detail-title">予定詳細</h3>
+                <button class="btn-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="cal-detail-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDK & Logic-->
-    <script type="module" src="app.js?v=7"></script>
+    <script type="module" src="app.js?v=8"></script>
 </body>
 </html>

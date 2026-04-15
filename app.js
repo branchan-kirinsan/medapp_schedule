@@ -47,8 +47,8 @@ const NOTE_STATUSES = {
 };
 
 let filterUserId = null; /* Global user filter */
-let tasks = [], notes = [], ideas = [], events = [];
-let unsubTasks, unsubNotes, unsubIdeas, unsubEvents;
+let tasks = [], notes = [], ideas = [], events = [], meetings = [];
+let unsubTasks, unsubNotes, unsubIdeas, unsubEvents, unsubMeetings;
 
 document.addEventListener('DOMContentLoaded', () => {
     initUI();
@@ -76,6 +76,9 @@ function initUI() {
     createCheckboxes('input-task-assignees', USERS);
     createCheckboxes('input-note-assignees', USERS);
     createCheckboxes('input-event-participants', USERS);
+    createCheckboxes('input-meeting-participants', USERS);
+    createCheckboxes('input-dev-idea-assignees', USERS);
+    createCheckboxes('edit-idea-assignees', USERS);
 
     // Render Note Status Buttons in Modal
     document.getElementById('note-status-buttons').innerHTML = Object.keys(NOTE_STATUSES).map(key => `
@@ -107,13 +110,14 @@ document.getElementById('btn-reset-filter').addEventListener('click', () => {
 
 // --- Data Fetching ---
 function fetchAllData() {
-    if (unsubTasks) unsubTasks(); if (unsubNotes) unsubNotes(); if (unsubIdeas) unsubIdeas(); if (unsubEvents) unsubEvents();
-    tasks = []; notes = []; ideas = []; events = [];
+    if (unsubTasks) unsubTasks(); if (unsubNotes) unsubNotes(); if (unsubIdeas) unsubIdeas(); if (unsubEvents) unsubEvents(); if(unsubMeetings) unsubMeetings();
+    tasks = []; notes = []; ideas = []; events = []; meetings = [];
     
     unsubTasks = onSnapshot(collection(db, 'tasks'), snap => { tasks = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); }, (error) => handleFirebaseError(error));
     unsubNotes = onSnapshot(collection(db, 'notes'), snap => { notes = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
     unsubIdeas = onSnapshot(collection(db, 'ideas'), snap => { ideas = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
     unsubEvents = onSnapshot(collection(db, 'events'), snap => { events = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
+    unsubMeetings = onSnapshot(collection(db, 'meetings'), snap => { meetings = snap.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
 }
 
 function handleFirebaseError(error) {
@@ -211,6 +215,14 @@ function setupEventListeners() {
         }
     });
 
+    document.getElementById('btn-add-meeting').addEventListener('click', () => {
+        document.getElementById('form-meeting').reset();
+        document.getElementById('input-meeting-id').value = "";
+        window.toggleMeetingType();
+        document.getElementById('modal-meeting-title').innerText = "ミーティング追加";
+        document.getElementById('modal-meeting').classList.add('active');
+    });
+
     document.getElementById('cal-prev').addEventListener('click', () => changeMonth(-1));
     document.getElementById('cal-next').addEventListener('click', () => changeMonth(1));
 
@@ -219,7 +231,19 @@ function setupEventListeners() {
     document.getElementById('form-event').addEventListener('submit', handleEventSubmit);
     document.getElementById('form-dev-idea').addEventListener('submit', handleDevIdeaSubmit);
     document.getElementById('form-dev-idea-edit').addEventListener('submit', handleDevIdeaEditSubmit);
+    document.getElementById('form-meeting').addEventListener('submit', handleMeetingSubmit);
 }
+
+window.toggleMeetingType = () => {
+    const isOffline = document.querySelector('input[name="meeting_type"][value="offline"]')?.checked;
+    document.getElementById('group-meeting-location').style.display = isOffline ? 'block' : 'none';
+};
+
+window.openDailyDetail = (dateStr, htmlBase64) => {
+    document.getElementById('modal-cal-detail-title').innerText = dateStr + ' の予定';
+    document.getElementById('cal-detail-list').innerHTML = decodeURIComponent(escape(atob(htmlBase64)));
+    document.getElementById('modal-cal-detail').classList.add('active');
+};
 
 // --- Render Logic ---
 function renderAll() {
@@ -227,6 +251,7 @@ function renderAll() {
     renderNotes();
     renderIdeas();
     renderEventPrep();
+    renderMeetings();
     if(document.getElementById('view-calendar').classList.contains('active')) renderCalendar();
     updateEventDataList();
 }
@@ -285,6 +310,8 @@ function renderTasks() {
     }
 
     const now = new Date();
+    container.innerHTML = '';
+    
     // Sort logic: 1. Incomplete first, 2. Closest deadline first.
     const sortedTasks = [...filteredTasks].sort((a,b) => {
         const aDone = a.assignees.length > 0 && a.assignees.every(as => as.isCompleted);
@@ -295,7 +322,10 @@ function renderTasks() {
         return new Date(a.deadline) - new Date(b.deadline);
     });
 
-    container.innerHTML = sortedTasks.map(task => {
+    const incompleteTasks = sortedTasks.filter(task => !(task.assignees.length > 0 && task.assignees.every(a => a.isCompleted)));
+    const completedTasks = sortedTasks.filter(task => (task.assignees.length > 0 && task.assignees.every(a => a.isCompleted)));
+
+    const renderTaskHtml = (task) => {
         const isAllCompleted = task.assignees.length > 0 && task.assignees.every(a => a.isCompleted);
         const deadlineDate = new Date(task.deadline).toLocaleDateString('ja-JP');
         const isUrgent = new Date(task.deadline) < now && !isAllCompleted;
@@ -330,7 +360,20 @@ function renderTasks() {
                 </div>
             </div>
         `;
-    }).join('');
+    };
+
+    let html = incompleteTasks.map(renderTaskHtml).join('');
+    if (completedTasks.length > 0) {
+        html += `
+            <details>
+                <summary>完了したタスク (${completedTasks.length}件)</summary>
+                <div class="details-content" style="display:flex; flex-direction:column; gap:16px;">
+                    ${completedTasks.map(renderTaskHtml).join('')}
+                </div>
+            </details>
+        `;
+    }
+    container.innerHTML = html;
 }
 
 window.openEditTask = (taskId) => {
@@ -397,7 +440,19 @@ function renderNotes() {
             </div>
         `).join('');
 
-        return `<div class="kanban-col"><div class="kanban-col-header">${statusObj.label} <span class="badge badge-blue">${colNotes.length}</span></div>${cardsHtml}</div>`;
+        let innerColHtml = cardsHtml;
+        if (statusKey === 'published' && colNotes.length > 0) {
+            innerColHtml = `
+                <details>
+                    <summary>完了した記事 (${colNotes.length}件)</summary>
+                    <div class="details-content" style="display:flex; flex-direction:column; gap:16px;">
+                        ${cardsHtml}
+                    </div>
+                </details>
+            `;
+        }
+
+        return `<div class="kanban-col"><div class="kanban-col-header">${statusObj.label} <span class="badge badge-blue">${colNotes.length}</span></div>${innerColHtml}</div>`;
     }).join('');
 }
 
@@ -444,15 +499,37 @@ function renderIdeas() {
         container.innerHTML = `<p style="color:var(--text-secondary); padding: 20px 0;">アイデアはまだありません💡</p>`; return;
     }
     
-    // Sort: incomplete first
-    const sortedIdeas = [...ideas].sort((a, b) => (a.isCompleted === b.isCompleted) ? 0 : a.isCompleted ? 1 : -1);
+    // Sort logic
+    const sortedIdeas = [...ideas].sort((a, b) => {
+        if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+        const hasAssigneeA = a.assignees && a.assignees.length > 0;
+        const hasAssigneeB = b.assignees && b.assignees.length > 0;
+        if (hasAssigneeA !== hasAssigneeB) return hasAssigneeA ? -1 : 1;
+        
+        const hasDateA = !!a.date;
+        const hasDateB = !!b.date;
+        if (hasDateA && !hasDateB) return -1;
+        if (!hasDateA && hasDateB) return 1;
+        if (hasDateA && hasDateB) return new Date(a.date) - new Date(b.date);
+        
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+    
+    const incompleteIdeas = sortedIdeas.filter(i => !i.isCompleted);
+    const completedIdeas = sortedIdeas.filter(i => i.isCompleted);
 
-    container.innerHTML = sortedIdeas.map((idea, index) => {
+    const renderIdeaHtml = (idea, index) => {
         const bg = IDEA_COLORS[index % IDEA_COLORS.length];
         const isDone = idea.isCompleted || false;
+        const avatars = idea.assignees && idea.assignees.length > 0 
+            ? `<div class="user-profiles" style="transform: scale(0.7); transform-origin: left; margin-top:12px;">${idea.assignees.map(u => getAvatarHtml(u)).join('')}</div>`
+            : '';
+        const dateHtml = idea.date ? `<div style="font-size:0.85rem; color:var(--text-secondary); margin-top:8px; display:flex; align-items:center; gap:4px;"><span class="material-icons-outlined" style="font-size:16px;">event</span> リリース目標: ${idea.date}</div>` : '';
         return `
             <div class="idea-card ${isDone ? 'completed' : ''}" style="background: ${isDone ? '#f1f3f4' : bg};">
                 <div class="idea-content">${idea.content.replace(/\n/g, '<br>')}</div>
+                ${dateHtml}
+                ${avatars}
                 <div class="idea-actions">
                     <button class="icon-btn complete ${isDone ? 'active' : ''}" onclick="window.toggleIdeaCompletion('${idea.id}')" title="${isDone ? '未完了に戻す' : '完了にする'}">
                         <span class="material-icons-outlined">${isDone ? 'check_circle' : 'radio_button_unchecked'}</span>
@@ -462,7 +539,25 @@ function renderIdeas() {
                 </div>
             </div>
         `;
-    }).join('');
+    };
+
+    let html = '';
+    if(incompleteIdeas.length > 0) {
+        html += `<div class="idea-group">` + incompleteIdeas.map(renderIdeaHtml).join('') + `</div>`;
+    }
+    
+    if(completedIdeas.length > 0) {
+        html += `
+            <details>
+                <summary>完了したアイデア (${completedIdeas.length}件)</summary>
+                <div class="details-content idea-group" style="padding-top:16px;">
+                    ${completedIdeas.map(renderIdeaHtml).join('')}
+                </div>
+            </details>
+        `;
+    }
+    
+    container.innerHTML = html;
 }
 
 window.openEditIdea = (ideaId) => {
@@ -470,6 +565,9 @@ window.openEditIdea = (ideaId) => {
     if(!idea) return;
     document.getElementById('edit-idea-id').value = idea.id;
     document.getElementById('edit-idea-content').value = idea.content;
+    document.getElementById('edit-idea-date').value = idea.date || "";
+    const assignees = idea.assignees || [];
+    document.querySelectorAll('#edit-idea-assignees input[type="checkbox"]').forEach(cb => cb.checked = assignees.includes(cb.value));
     document.getElementById('modal-dev-idea-edit').classList.add('active');
 }
 window.deleteIdea = async (ideaId) => {
@@ -508,22 +606,32 @@ function renderCalendar() {
         const dayTasks = tasks.filter(t => t.deadline === dateStr && isRelatedToFilter(t));
         const dayNotes = notes.filter(n => n.date === dateStr && isRelatedToFilter(n));
         const dayEvents = events.filter(e => e.date === dateStr && isRelatedToFilter(e));
+        const dayMeetings = meetings.filter(m => m.date === dateStr && isRelatedToFilter(m));
         
         let badgesHtml = '';
         
         const renderBadge = (item, type, icon, title, userList, id) => {
-            const usersStr = userList && userList.length > 0 ? (Array.isArray(userList) ? userList : userList.map(u => u.userId || u)) : [];
-            const avatarsHtml = usersStr.filter(u => !filterUserId || u === filterUserId).map(uid => {
-                return getAvatarHtml(uid, '18px', '0', 'cal-avatar');
-            }).join('');
+            let isItemCompleted = false;
+            let assigneesStatus = [];
+            if (type === 'task') {
+                isItemCompleted = item.assignees && item.assignees.length > 0 && item.assignees.every(a => a.isCompleted);
+                assigneesStatus = item.assignees || [];
+            }
+            const normalizedUsers = (userList || []).map(u => typeof u === 'object' ? u.userId : u);
+            const filteredUsers = normalizedUsers.filter(u => u && USERS.includes(u) && (!filterUserId || u === filterUserId));
+            
+            const avatarsHtml = filteredUsers.map(uid => getAvatarHtml(uid, '18px', '0', 'cal-avatar')).join('');
             
             let label = title;
             let typeClass = type;
             if(type === 'task') label = 'タスク';
             if(type === 'note') label = 'note';
             if(type === 'custom') { label = 'イベント'; typeClass = 'custom'; }
+            if(type === 'meeting') { label = 'ミーティング'; typeClass = 'meeting'; }
 
-            return `<div class="cal-event-badge ${typeClass}" title="${title}" onclick="event.stopPropagation(); window.openCalendarDetail('${type}', '${id}')">
+            let styleStr = isItemCompleted ? `background: rgba(0,0,0,0.05); color: #999; text-decoration: line-through; border: 1px dashed #ccc;` : '';
+
+            return `<div class="cal-event-badge ${typeClass}" title="${title}" style="${styleStr}" onclick="event.stopPropagation(); window.openCalendarDetail('${type}', '${id}')">
                 <span style="flex:1; font-size:11px; text-align:left;">${label}</span>
                 <div style="display:flex; gap:2px; margin-left:4px;">${avatarsHtml}</div>
             </div>`;
@@ -532,9 +640,15 @@ function renderCalendar() {
         dayTasks.forEach(t => badgesHtml += renderBadge(t, 'task', 'task_alt', t.title, t.assignees, t.id));
         dayNotes.forEach(n => badgesHtml += renderBadge(n, 'note', 'article', n.title, n.assignees, n.id));
         dayEvents.forEach(e => badgesHtml += renderBadge(e, 'custom', 'event', e.title, e.participants, e.id));
+        dayMeetings.forEach(m => badgesHtml += renderBadge(m, 'meeting', 'groups', m.title, m.participants, m.id));
         
         const dayDiv = document.createElement('div');
         dayDiv.className = `cal-day ${isToday ? 'today' : ''}`;
+        
+        // Pass the generated HTML to the daily detail model safely
+        const encodedBadgesHtml = btoa(unescape(encodeURIComponent(badgesHtml)));
+        dayDiv.onclick = () => window.openDailyDetail(dateStr, encodedBadgesHtml);
+        
         dayDiv.innerHTML = `<div class="cal-day-header" style="text-align:right; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">${day}</div><div style="flex:1; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden;">${badgesHtml}</div>`;
         grid.appendChild(dayDiv);
     }
@@ -542,9 +656,97 @@ function renderCalendar() {
 function changeMonth(delta) { currentCalDate.setMonth(currentCalDate.getMonth() + delta); renderCalendar(); }
 
 window.openCalendarDetail = (type, id) => {
+    document.getElementById('modal-cal-detail').classList.remove('active');
     if (type === 'task') window.openEditTask(id);
     else if (type === 'note') window.openEditNote(new Event('click'), id);
     else if (type === 'custom') window.openEditEvent(id);
+    else if (type === 'meeting') window.openEditMeeting(id);
+};
+
+// --- Meetings Logic ---
+function renderMeetings() {
+    const container = document.getElementById('meetings-list');
+    const filteredMeetings = meetings.filter(m => isRelatedToFilter(m));
+    if(filteredMeetings.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-secondary); padding: 20px 0;">ミーティングが予定されていません🤝</p>`; return;
+    }
+    
+    // Sort upcoming first
+    const now = new Date().toISOString().split('T')[0];
+    const sortedMeetings = filteredMeetings.sort((a,b) => {
+        if(!a.date) return 1; if(!b.date) return -1;
+        return new Date(a.date) - new Date(b.date);
+    });
+
+    const upcomingMeetings = sortedMeetings.filter(m => m.date >= now);
+    const pastMeetings = sortedMeetings.filter(m => m.date < now);
+
+    const renderMeetingHtml = (m) => {
+        const isOffline = m.type === 'offline';
+        return `
+            <div class="meeting-card">
+                <div class="meeting-header">
+                    <div>
+                        <span class="meeting-type-badge ${m.type}"><span class="material-icons-outlined">${isOffline ? 'directions_run' : 'laptop_mac'}</span> ${isOffline ? 'オフライン' : 'オンライン'}</span>
+                        <h3 class="meeting-title">${m.title}</h3>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="icon-btn edit" style="width:28px; height:28px;" onclick="window.openEditMeeting('${m.id}')" title="編集"><span class="material-icons-outlined" style="font-size:16px;">edit</span></button>
+                        <button class="icon-btn delete" style="width:28px; height:28px;" onclick="window.deleteMeeting('${m.id}')" title="削除"><span class="material-icons-outlined" style="font-size:16px;">delete</span></button>
+                    </div>
+                </div>
+                <div class="meeting-info">
+                    <span><span class="material-icons-outlined">event</span> ${m.date} ${m.time || ''}</span>
+                    ${isOffline && m.location ? `<span><span class="material-icons-outlined">place</span> ${m.location}</span>` : ''}
+                </div>
+                ${m.memo ? `<div class="meeting-memo">${m.memo.replace(/\n/g, '<br>')}</div>` : ''}
+                <div class="user-profiles" style="margin-top:12px;">
+                    ${(m.participants || []).map(u => getAvatarHtml(u, '32px', '0')).join('')}
+                </div>
+            </div>
+        `;
+    };
+
+    let html = upcomingMeetings.map(renderMeetingHtml).join('');
+    
+    if(pastMeetings.length > 0) {
+        html += `
+            <details>
+                <summary>過去のミーティング (${pastMeetings.length}件)</summary>
+                <div class="details-content" style="display:flex; flex-direction:column; gap:16px;">
+                    ${pastMeetings.map(renderMeetingHtml).join('')}
+                </div>
+            </details>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+window.openEditMeeting = (id) => {
+    const m = meetings.find(x => x.id === id);
+    if (!m) return;
+    document.getElementById('input-meeting-id').value = m.id;
+    document.querySelector(`input[name="meeting_type"][value="${m.type}"]`).checked = true;
+    window.toggleMeetingType();
+    
+    document.getElementById('input-meeting-title').value = m.title;
+    document.getElementById('input-meeting-date').value = m.date || '';
+    document.getElementById('input-meeting-time').value = m.time || '';
+    document.getElementById('input-meeting-location').value = m.location || '';
+    document.getElementById('input-meeting-memo').value = m.memo || '';
+    
+    const participants = m.participants || [];
+    document.querySelectorAll('#input-meeting-participants input[type="checkbox"]').forEach(cb => cb.checked = participants.includes(cb.value));
+
+    document.getElementById('modal-meeting-title').innerText = "ミーティング編集";
+    document.getElementById('modal-meeting').classList.add('active');
+};
+
+window.deleteMeeting = async (id) => {
+    if (confirm("このミーティングを削除してもよろしいですか？")) {
+        try { await deleteDoc(doc(db, 'meetings', id)); } catch(err) { console.error(err); }
+    }
 };
 
 // --- Event Prep Rendering ---
@@ -561,7 +763,19 @@ function renderEventPrep() {
         return new Date(a.date) - new Date(b.date);
     });
     
-    container.innerHTML = sortedEvents.map(ev => {
+    container.innerHTML = '';
+    
+    const incompleteEvents = sortedEvents.filter(ev => {
+        const preps = ev.prepTasks || [];
+        return preps.length === 0 || preps.some(p => !p.done);
+    });
+    
+    const completedEvents = sortedEvents.filter(ev => {
+        const preps = ev.prepTasks || [];
+        return preps.length > 0 && preps.every(p => p.done);
+    });
+
+    const renderPrepCardHtml = (ev) => {
         const preps = ev.prepTasks || [];
         const completedCount = preps.filter(p => p.done).length;
         const progressPercent = preps.length === 0 ? 0 : Math.round((completedCount / preps.length) * 100);
@@ -592,7 +806,20 @@ function renderEventPrep() {
                 </div>
             </div>
         `;
-    }).join('');
+    };
+
+    let html = incompleteEvents.map(renderPrepCardHtml).join('');
+    if(completedEvents.length > 0) {
+        html += `
+            <details>
+                <summary>準備完了したイベント (${completedEvents.length}件)</summary>
+                <div class="details-content" style="display:flex; flex-direction:column; gap:16px;">
+                    ${completedEvents.map(renderPrepCardHtml).join('')}
+                </div>
+            </details>
+        `;
+    }
+    container.innerHTML = html;
 }
 
 window.addPrepTask = async (eventId) => {
@@ -715,8 +942,10 @@ async function handleEventSubmit(e) {
 async function handleDevIdeaSubmit(e) {
     e.preventDefault();
     const content = document.getElementById('input-dev-idea-content').value;
+    const date = document.getElementById('input-dev-idea-date').value;
+    const assignees = Array.from(document.querySelectorAll('#input-dev-idea-assignees input:checked')).map(cb => cb.value);
     try {
-        await addDoc(collection(db, 'ideas'), { content, isCompleted: false, createdAt: new Date().toISOString() });
+        await addDoc(collection(db, 'ideas'), { content, date, assignees, isCompleted: false, createdAt: new Date().toISOString() });
         document.getElementById('modal-dev-idea').classList.remove('active'); e.target.reset();
     } catch(err) { console.error(err); }
 }
@@ -725,8 +954,32 @@ async function handleDevIdeaEditSubmit(e) {
     e.preventDefault();
     const id = document.getElementById('edit-idea-id').value;
     const content = document.getElementById('edit-idea-content').value;
+    const date = document.getElementById('edit-idea-date').value;
+    const assignees = Array.from(document.querySelectorAll('#edit-idea-assignees input:checked')).map(cb => cb.value);
     try {
-        await updateDoc(doc(db, 'ideas', id), { content });
+        await updateDoc(doc(db, 'ideas', id), { content, date, assignees });
         document.getElementById('modal-dev-idea-edit').classList.remove('active');
+    } catch(err) { console.error(err); }
+}
+
+async function handleMeetingSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('input-meeting-id').value;
+    const title = document.getElementById('input-meeting-title').value;
+    const type = document.querySelector('input[name="meeting_type"]:checked').value;
+    const date = document.getElementById('input-meeting-date').value;
+    const time = document.getElementById('input-meeting-time').value;
+    const location = type === 'offline' ? document.getElementById('input-meeting-location').value : "";
+    const memo = document.getElementById('input-meeting-memo').value;
+    const participants = Array.from(document.querySelectorAll('#input-meeting-participants input:checked')).map(cb => cb.value);
+
+    try {
+        if (id) {
+            await updateDoc(doc(db, 'meetings', id), { title, type, date, time, location, memo, participants });
+        } else {
+            await addDoc(collection(db, 'meetings'), { title, type, date, time, location, memo, participants, createdAt: new Date().toISOString() });
+        }
+        document.getElementById('modal-meeting').classList.remove('active'); 
+        e.target.reset();
     } catch(err) { console.error(err); }
 }
